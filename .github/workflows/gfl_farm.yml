@@ -127,15 +127,13 @@ jobs:
 
       - name: Trigger Next Workflow
         env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           if ls respawn_*.flag 1> /dev/null 2>&1; then
             echo "Respawn flag(s) found. Triggering next job..."
-            # Authenticate GH CLI using the same PAT
-            echo "$GH_PAT" | gh auth login --with-token
             
-            # Target the current PUBLIC repo to trigger the next loop
-            gh workflow run "GFL Auto Farm Workflow" -R ${{ github.repository }} -f mission_type="${{ github.event.inputs.mission_type }}"
+            # The -R ${{ github.repository }} strictly locks the target to the current deployzirc repo
+            gh workflow run "GFL Auto Farm Workflow" -R ${{ github.repository }} -f mission_type="${{ github.event.inputs.mission_type }}"  
             echo "Next job triggered successfully."
           else
             echo "No respawn flags found. All jobs completed or failed fatally."
