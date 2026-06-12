@@ -47,10 +47,14 @@ jobs:
                   print(f"[-] Exception: {e}")
                   print(f"[*] Fallback to single account mode (length=1).")
 
+          # Generate pure integer array: [0] or [0, 1]
           matrix_arr = list(range(length))
+          
+          # Separators=(",", ":") removes ALL spaces! Output is strictly [0,1]
           matrix_json = json.dumps(matrix_arr, separators=(",", ":"))
           print(f"[*] Generated Index Matrix: {matrix_json}")
           
+          # Write to GITHUB_OUTPUT as a strict single line
           output_path = os.environ.get("GITHUB_OUTPUT")
           with open(output_path, "a") as f:
               f.write(f"matrix={matrix_json}\n")
@@ -62,7 +66,7 @@ jobs:
 
   farm:
     needs: prepare
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -88,6 +92,7 @@ jobs:
 
       - name: Run GFL Agent
         env:
+          # Directly passing Secrets to circumvent GHA Output limits
           GFL_CONFIG: ${{ secrets.GFL_CONFIG }}
           GFL_SIGN_KEY: ${{ secrets.GFL_SIGN_KEY }}
           GFL_USER_DEVICE: ${{ secrets.GFL_USER_DEVICE }}
@@ -99,12 +104,12 @@ jobs:
 
       - name: Check for Respawn Flag
         id: check_respawn
-        shell: pwsh
+        shell: bash
         run: |
-          if (Test-Path "respawn.flag") {
+          if [ -f "respawn.flag" ]; then
             echo "1" > "respawn_${{ matrix.account_index }}.flag"
-            Write-Host "Respawn flag detected for account ${{ matrix.account_index }}."
-          }
+            echo "Respawn flag detected for account ${{ matrix.account_index }}."
+          fi
 
       - name: Upload Respawn Flag
         uses: actions/upload-artifact@v4
@@ -132,8 +137,8 @@ jobs:
           if ls respawn_*.flag 1> /dev/null 2>&1; then
             echo "Respawn flag(s) found. Triggering next job..."
             
-            # The -R ${{ github.repository }} strictly locks the target to the current deployzirc repo
-            gh workflow run "GFL Auto Farm Workflow" -R ${{ github.repository }} -f mission_type="${{ github.event.inputs.mission_type }}"  
+            # The -R strictly locks the target to the current deployzirc repo
+            gh workflow run "GFL Auto Farm Workflow" -R ${{ github.repository }} -f mission_type="${{ github.event.inputs.mission_type }}"
             echo "Next job triggered successfully."
           else
             echo "No respawn flags found. All jobs completed or failed fatally."
